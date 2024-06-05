@@ -50,4 +50,53 @@ exports.searchRepository = async (req, res, next) => {
     }
 };
 
-exports.getRespositoryDetail = (req, res, next) => {};
+exports.getRepositoryDetail = async (req, res, next) => {
+    const { owner, repo } = req.params;
+
+    try {
+        // Initiate fetching repo details and readme in parallel
+        const repoDetailPromise = axios.get(
+            `${GITHUB_URL}/repos/${owner}/${repo}`
+        );
+        const readmePromise = axios.get(
+            `${GITHUB_URL}/repos/${owner}/${repo}/readme`,
+            {
+                headers: { Accept: "application/vnd.github.v3.raw" },
+            }
+        );
+
+        // Await repo details to fetch owner details
+        const { data: repoDetail } = await repoDetailPromise;
+        const username = repoDetail.owner?.login;
+
+        // Initiate fetching user details
+        const userDetailPromise = axios.get(`${GITHUB_URL}/users/${username}`);
+
+        // Await both readme and user details
+        const [userDetailResponse, readmeResponse] = await Promise.all([
+            userDetailPromise,
+            readmePromise,
+        ]);
+
+        const userDetail = userDetailResponse.data;
+        const readme = readmeResponse.data;
+
+        const data = {
+            ownerName: userDetail.name,
+            ownerUrl: userDetail.html_url,
+            repositoryName: repoDetail.name,
+            repositoryUrl: repoDetail.html_url,
+            openIssuesCount: repoDetail.open_issues,
+            defaultBranch: repoDetail.default_branch,
+            readme,
+        };
+
+        res.json({
+            success: true,
+            data,
+        });
+    } catch (error) {
+        console.error("Error in getRepositoryDetail:", error.message);
+        next(error);
+    }
+};
