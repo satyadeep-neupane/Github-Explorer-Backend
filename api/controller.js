@@ -30,6 +30,21 @@ exports.searchRepository = async (req, res, next) => {
             params: queryParams,
         });
 
+        const processedData = {
+            totalCount: data.total_count,
+            items: data?.items?.map((i) => ({
+                id: i.id,
+                repoName: i.name,
+                repoFullName: i.full_name,
+                ownerId: i.owner?.login,
+                description: i.description,
+                updatedAt: i.updated_at,
+                starsCount: i.stargazers_count,
+                watchersCount: i.watchers_count,
+                forksCount: i.forks,
+            })),
+        };
+
         const totalCount = parseInt(data?.total_count || 0);
 
         const pagination = {
@@ -41,11 +56,10 @@ exports.searchRepository = async (req, res, next) => {
 
         res.json({
             success: true,
-            data,
+            data: processedData,
             pagination,
         });
     } catch (error) {
-        console.log(error.message);
         next(error);
     }
 };
@@ -82,12 +96,15 @@ exports.getRepositoryDetail = async (req, res, next) => {
         const readme = readmeResponse.data;
 
         const data = {
-            ownerName: userDetail.name,
+            ownerName: userDetail.name || repoDetail.owner?.login,
             ownerUrl: userDetail.html_url,
             repositoryName: repoDetail.name,
             repositoryUrl: repoDetail.html_url,
             openIssuesCount: repoDetail.open_issues,
             defaultBranch: repoDetail.default_branch,
+            starsCount: repoDetail.stargazers_count,
+            watchersCount: repoDetail.watchers_count,
+            forksCount: repoDetail.forks,
             readme,
         };
 
