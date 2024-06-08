@@ -28,7 +28,7 @@ npm install
 ### 3. Copy the environment variables file:
 
 ```
-cp env.example .env
+cp .env.example .env
 ```
 
 Edit the `.env` file and fill in the required values.
