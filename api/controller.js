@@ -1,5 +1,10 @@
-const axios = require("axios");
-const GITHUB_URL = "https://api.github.com";
+const {
+    fetchRespositoryList,
+    fetchRespositoryDetail,
+    fetchReadMe,
+    fetchUserDetail,
+} = require("./config");
+
 const { PER_PAGE_DEFAULT, DEFAULT_PAGE } = require("./constants");
 
 exports.searchRepository = async (req, res, next) => {
@@ -20,15 +25,18 @@ exports.searchRepository = async (req, res, next) => {
             };
         }
 
-        const queryParams = new URLSearchParams({ q, per_page: perPage, page });
-
-        if (order) queryParams.append("order", order);
-        if (sort && ["asc", "desc"].includes(sort))
-            queryParams.append("sort", sort);
-
-        const { data } = await axios.get(`${GITHUB_URL}/search/repositories`, {
-            params: queryParams,
+        const queryParams = new URLSearchParams({
+            q,
+            type: "repositories",
+            per_page: perPage,
+            page,
         });
+
+        if (sort) queryParams.append("sort", sort);
+        if (sort && ["asc", "desc"].includes(order))
+            queryParams.append("order", order);
+
+        const { data } = await fetchRespositoryList(queryParams);
 
         const processedData = {
             totalCount: data.total_count,
@@ -69,22 +77,15 @@ exports.getRepositoryDetail = async (req, res, next) => {
 
     try {
         // Initiate fetching repo details and readme in parallel
-        const repoDetailPromise = axios.get(
-            `${GITHUB_URL}/repos/${owner}/${repo}`
-        );
-        const readmePromise = axios.get(
-            `${GITHUB_URL}/repos/${owner}/${repo}/readme`,
-            {
-                headers: { Accept: "application/vnd.github.v3.raw" },
-            }
-        );
+        const repoDetailPromise = fetchRespositoryDetail(owner, repo);
+        const readmePromise = fetchReadMe(owner, repo);
 
         // Await repo details to fetch owner details
         const { data: repoDetail } = await repoDetailPromise;
         const username = repoDetail.owner?.login;
 
         // Initiate fetching user details
-        const userDetailPromise = axios.get(`${GITHUB_URL}/users/${username}`);
+        const userDetailPromise = fetchUserDetail(username);
 
         // Await both readme and user details
         const [userDetailResponse, readmeResponse] = await Promise.all([
@@ -105,6 +106,7 @@ exports.getRepositoryDetail = async (req, res, next) => {
             starsCount: repoDetail.stargazers_count,
             watchersCount: repoDetail.watchers_count,
             forksCount: repoDetail.forks,
+            updatedAt: repoDetail.updated_at,
             readme,
         };
 
